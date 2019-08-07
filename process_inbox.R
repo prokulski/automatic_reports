@@ -1,6 +1,8 @@
-library(gmailr)
-library(tidyverse)
-library(lubridate)
+setwd("/home/lemur/RProjects/automatic_reports")
+
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(lubridate))
+suppressPackageStartupMessages(library(gmailr))
 
 # autoryzacja w GMail
 use_secret_file("gmail_api_key.json")

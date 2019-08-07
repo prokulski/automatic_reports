@@ -1,8 +1,10 @@
-library(tidyverse)
-library(httr)
-library(glue)
-library(jsonlite)
-library(lubridate)
+setwd("/home/lemur/RProjects/automatic_reports")
+
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(httr))
+suppressPackageStartupMessages(library(glue))
+suppressPackageStartupMessages(library(jsonlite))
+suppressPackageStartupMessages(library(lubridate))
 
 # tutaj mamy zapisane klucze do API Wykopu
 load("wykop_api.rda") # zmienne wykop_api_key oraz wykop_secret_key
