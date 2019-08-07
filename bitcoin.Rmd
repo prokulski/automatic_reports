@@ -1,0 +1,96 @@
+---
+title: "Notowania Bitcoin"
+output: 
+  pdf_document: 
+    latex_engine: xelatex
+params:
+  odbiorca_raportu: "nieznany"
+---
+```{r, include=FALSE}
+setwd("~/RProjects/automatic_reports")
+library(tidyverse)
+library(lubridate)
+library(httr)
+library(jsonlite)
+library(knitr)
+
+# opcje chunków
+opts_chunk$set(echo = FALSE, message = FALSE, error = FALSE, warning = FALSE)
+options(knitr.table.format = "latex")
+
+# klucz API zapisany w pliku (jako string)
+load("nomics_apikey.rda")
+```
+```{r grab_data_30d}
+# pobieramy historię z ostatnich 30 dni - to będą dane dzienne
+start_date <- today()-days(5)
+
+query <- paste0("https://api.nomics.com/v1/currencies/sparkline?key=", api_key, "&start=", start_date ,"T00%3A00%3A00Z")
+
+res <- GET(query)
+
+temp_df <- fromJSON(rawToChar(res$content), flatten = TRUE)
+
+# tylko interesujące nas walory
+df_30d <- temp_df %>%
+  filter(currency %in% c("BTC", "BTCBEP2", "RBTC", "WBTC")) %>%
+  # "rozpakowanie" zagnieżdżonych tabelek
+  unnest(cols = c(timestamps, prices)) %>%
+  # poprawa typów kolumn
+  mutate(timestamps = ymd_hms(timestamps, tz = "UTC") %>% with_tz("Europe/Warsaw"),
+         prices = as.numeric(prices))
+```
+```{r grab_data_1d}
+# pobieramy historię z dzisiaj - to będą dane godzinowe
+start_date <- today()
+
+query <- paste0("https://api.nomics.com/v1/currencies/sparkline?key=", api_key, "&start=", start_date ,"T00%3A00%3A00Z")
+
+res <- GET(query)
+
+temp_df <- fromJSON(rawToChar(res$content), flatten = TRUE)
+
+df_1d <- temp_df %>%
+  filter(currency %in% c("BTC", "BTCBEP2", "RBTC", "WBTC")) %>%
+  unnest(cols = c(timestamps, prices)) %>%
+  mutate(timestamps = ymd_hms(timestamps, tz = "UTC") %>% with_tz("Europe/Warsaw"),
+         prices = as.numeric(prices))
+```
+```{r join_data}
+# łączymy dane dzienne i godzinowe
+df_full <- bind_rows(df_1d, df_30d) %>%
+  # dzisiejsza godzina 00:00 się powtarza - zostawiamy tylko jedną
+  distinct(currency, timestamps, .keep_all = TRUE)
+```
+
+Na podstawie danych z nomics.com. Aktualizacja: `r now()`.
+
+Przygotowane dla: *`r params$odbiorca_raportu`*.
+
+
+# WYKRES NOTOWAŃ
+
+```{r plot_data}
+# rysujemy wykres z notowaniami poszczególnych papierów
+df_full %>%
+  ggplot() +
+  geom_line(aes(timestamps, prices, color = currency), size = 2, show.legend = FALSE) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  labs(x = "", y = "Cena [USD]") +
+  facet_wrap(~currency, ncol = 2)
+```
+
+# TABELA Z NOTOWANIAMI
+
+```{r print_table}
+# przygotowujemy tabelkę z notowaniami
+df_full %>%
+  mutate(prices = sprintf("%.3f", prices)) %>%
+  # każdy papier w swojej kolumnie
+  spread(currency, prices, fill = "--") %>%
+  arrange(timestamps) %>%
+  mutate(timestamps = format(timestamps, "%Y-%m-%d %H:%M")) %>%
+  rename(`Data notowania` = timestamps) %>%
+  kable()
+```
