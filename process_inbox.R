@@ -44,7 +44,7 @@ send_wykop <- function(reciver) {
   email <- mime() %>%
     to(reciver) %>%
     subject("Hity dnia z Wykopu") %>%
-    html_body(wykop_str_tmp)
+    html_body(wykop_str)
 
   # wysyłamy
   ret_val <- send_message(email)
@@ -82,23 +82,24 @@ send_bitcoin <- function(reciver) {
 
 
 
-for(i in seq_len(nrow(selected_mails))) {
+for(i in seq_len(nrow(grabbed_mails))) {
 
   # od kogo mail?
-  reciver <- as.character(selected_mails[i, 'from_raw'])
+  reciver <- as.character(grabbed_mails[i, 'from_raw'])
 
   # czy "daj wykop"?
-  if(str_to_lower(selected_mails[i, "subject"]) == "daj wykop") {
-    # przygotuj i wyślij odpowiedź
+  if(str_to_lower(grabbed_mails[i, "subject"]) == "daj wykop") {
+    # przygotuj i wyślij odpowiedź (wykop)
     send_wykop(reciver)
     # przenosimy maila z pytaniem do kosza - żeby nie mieć go w przyszłości w inboxie
-    trash_message(as.character(selected_mails[i, "message_id"]))
+    trash_message(as.character(grabbed_mails[i, "message_id"]))
   }
 
   # czy "daj bitcoin"?
-  if(str_to_lower(selected_mails[i, "subject"]) == "daj bitcoin") {
+  if(str_to_lower(grabbed_mails[i, "subject"]) == "daj bitcoin") {
+    # przygotuj i wyślij odpowiedź (raport)
     send_bitcoin(reciver)
     # przenosimy maila z pytaniem do kosza
-    trash_message(as.character(selected_mails[i, "message_id"]))
+    trash_message(as.character(grabbed_mails[i, "message_id"]))
   }
 }
