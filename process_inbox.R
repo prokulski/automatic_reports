@@ -5,28 +5,30 @@ suppressPackageStartupMessages(library(lubridate))
 suppressPackageStartupMessages(library(gmailr))
 
 # autoryzacja w GMail
-use_secret_file("gmail_api_key.json")
+# PRZECZYTAJ KONIECZNIE https://gmailr.r-lib.org/#setup
+gm_auth_configure()
+gm_auth(email = TRUE, cache = ".secret")
 
 # czego szukamy? Dzisiejsze maile w "inbox"
-gmail_search_query = paste0("in:inbox after:", Sys.Date())
+gmail_search_query = "in:inbox is:unread"
 
 # pobieramy maile (max 9999 sztuk)
-ids <- messages(search = gmail_search_query, num_results = 9999, include_spam_trash = FALSE)
-ids <- gmailr::id(ids)
+ids <- gm_messages(search = gmail_search_query, num_results = 9999, include_spam_trash = FALSE)
+ids <- gm_id(ids)
 
 get_mail_content <- function(id)
 {
   # pobierz maila o podanym id ze skrzynki
-  mail_message <- message(id, format = 'full')
+  mail_message <- gm_message(id, format = 'full')
 
   # czysty nadawca czyli sam adres email
-  from_raw = str_match(gmailr::from(mail_message), "<(.*@.*)>")[[2]]
-  if(is.na(from_raw)) from_raw = gmailr::from(mail_message)
+  from_raw = str_match(gm_from(mail_message), "<(.*@.*)>")[[2]]
+  if(is.na(from_raw)) from_raw = gm_from(mail_message)
 
-  tibble(from = gmailr::from(mail_message),       # nadawca
+  tibble(from = gm_from(mail_message),       # nadawca
          from_raw = from_raw,                     # oczyszczona wersja nadawcy
-         date = gmailr::date(mail_message),       # data
-         subject = gmailr::subject(mail_message)) # tytuł maila
+         date = gm_date(mail_message),       # data
+         subject = gm_subject(mail_message)) # tytuł maila
 }
 
 grabbed_mails <- ids %>%
@@ -41,14 +43,15 @@ send_wykop <- function(reciver) {
     paste0(., collapse = "")
 
   # budujemy maila
-  email <- mime() %>%
-    to(reciver) %>%
+  email <- gm_mime() %>%
+    gm_to(reciver) %>%
     subject("Hity dnia z Wykopu") %>%
-    html_body(wykop_str)
+    gm_html_body(wykop_str)
 
   # wysyłamy
-  ret_val <- send_message(email)
+  ret_val <- gm_send_message(email)
 }
+
 
 send_bitcoin <- function(reciver) {
   # funkcja przygotowuje dedykowanego PDFa i wysyła go jako załącznik do "reciver"
@@ -66,15 +69,14 @@ send_bitcoin <- function(reciver) {
   # gmailr ma problem z załącznikiem i treścią jednocześnie, więc:
   # hack via https://github.com/r-lib/gmailr/issues/60
   body_txt <- "Raport znajdziesz w załączniku"
-  email <- mime() %>%
-    to(reciver) %>%
-    subject("Notowania BTC") %>%
-    html_body(body_txt)%>%
-    attach_part(body_txt) %>%
-    attach_file(temp_raport_file, type = "application/pdf", name = "raport.pdf")
+  email <- gm_mime() %>%
+    gm_to(reciver) %>%
+    gm_subject("Notowania BTC") %>%
+    gm_html_body(body_txt)%>%
+    gm_attach_file(temp_raport_file, type = "application/pdf", name = "raport.pdf")
 
   # wysyłamy maila
-  ret_val <- send_message(email)
+  ret_val <- gm_send_message(email)
 
   # kasujemy plik tymczasowy
   unlink(temp_raport_file)
@@ -92,7 +94,7 @@ for(i in seq_len(nrow(grabbed_mails))) {
     # przygotuj i wyślij odpowiedź (wykop)
     send_wykop(reciver)
     # przenosimy maila z pytaniem do kosza - żeby nie mieć go w przyszłości w inboxie
-    trash_message(as.character(grabbed_mails[i, "message_id"]))
+    gm_trash_message(as.character(grabbed_mails[i, "message_id"]))
   }
 
   # czy "daj bitcoin"?
@@ -100,6 +102,6 @@ for(i in seq_len(nrow(grabbed_mails))) {
     # przygotuj i wyślij odpowiedź (raport)
     send_bitcoin(reciver)
     # przenosimy maila z pytaniem do kosza
-    trash_message(as.character(grabbed_mails[i, "message_id"]))
+    gm_trash_message(as.character(grabbed_mails[i, "message_id"]))
   }
 }
