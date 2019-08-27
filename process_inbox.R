@@ -26,7 +26,7 @@ get_mail_content <- function(id)
   if(is.na(from_raw)) from_raw = gm_from(mail_message)
 
   tibble(from = gm_from(mail_message),       # nadawca
-         from_raw = from_raw,                     # oczyszczona wersja nadawcy
+         from_raw = from_raw,                # oczyszczona wersja nadawcy
          date = gm_date(mail_message),       # data
          subject = gm_subject(mail_message)) # tytuł maila
 }
@@ -45,7 +45,7 @@ send_wykop <- function(reciver) {
   # budujemy maila
   email <- gm_mime() %>%
     gm_to(reciver) %>%
-    subject("Hity dnia z Wykopu") %>%
+    gm_subject("Hity dnia z Wykopu") %>%
     gm_html_body(wykop_str)
 
   # wysyłamy
